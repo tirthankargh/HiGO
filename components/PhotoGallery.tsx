@@ -1,0 +1,9 @@
+'use client';
+import { useRef, useState } from 'react';
+import type { PublicObservation } from '@/lib/types';
+import { photoDate, creditLabel } from '@/lib/format';
+export default function PhotoGallery({ photos }: { photos: PublicObservation[] }) {
+  const dialog = useRef<HTMLDialogElement>(null), [selected,setSelected] = useState<PublicObservation | null>(null);
+  function open(photo: PublicObservation) { setSelected(photo); dialog.current?.showModal(); }
+  return <><div className="photo-grid">{photos.map((photo,i)=><figure key={photo.id} className="photo-card"><button className="photo-open" onClick={()=>open(photo)} aria-label={`Open photograph: ${photo.caption}`}><img loading="lazy" src={`/api/media/${photo.id}?variant=thumb`} alt={photo.caption}/><span className="photo-expand" aria-hidden="true">↗</span></button><figcaption><div className="photo-heading"><span className="micro">OBS. {String(i+1).padStart(2,'0')}</span><span>{photoDate(photo)}</span></div><p>{photo.caption}</p><span className="photo-credit">{creditLabel(photo.credit)}</span></figcaption></figure>)}</div><dialog ref={dialog} className="photo-dialog" onClick={e=>{ if(e.target===dialog.current) dialog.current.close(); }}>{selected && <div><button autoFocus className="dialog-close" onClick={()=>dialog.current?.close()} aria-label="Close photograph">✕</button><img src={`/api/media/${selected.id}`} alt={selected.caption}/><div className="dialog-copy"><span className="eyebrow">OBSERVATION RECORD</span><h2>{photoDate(selected)}</h2><p>{selected.caption}</p><dl className="metadata"><div><dt>Photographer</dt><dd>{creditLabel(selected.credit)}</dd></div><div><dt>Date source</dt><dd>{selected.metadata_source}</dd></div><div><dt>Collection / source</dt><dd>{selected.source || 'Not supplied'}</dd></div><div><dt>Camera location</dt><dd>{selected.location_description || 'Not recorded'}</dd></div></dl></div></div>}</dialog></>;
+}

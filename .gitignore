@@ -1,0 +1,16 @@
+node_modules/
+.next/
+.env*
+!.env.example
+data/
+backups/
+test-results/
+playwright-report/
+*.tsbuildinfo
+.DS_Store
+
+public/atlas/maplibre-gl-*.mjs
+public/atlas/MAPLIBRE-LICENSE.txt
+
+RGI2000-v7.0-G-14_south_asia_west
+RGI2000-v7.0-G-15_south_asia_east

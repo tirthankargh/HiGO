@@ -1,0 +1,16 @@
+'use client';
+import { useState } from 'react';
+import type { Comparison, PublicObservation } from '@/lib/types';
+import { creditLabel, photoDate } from '@/lib/format';
+export default function ComparisonViewer({ photos, pairs = [], initialLeftId }: { photos: PublicObservation[]; pairs?: Comparison[]; initialLeftId?: string }) {
+  const initialLeft = photos.find(p=>p.id===initialLeftId)?.id || photos.find(p=>!p.capture_date)?.id || photos[0]?.id || '';
+  const [left,setLeft] = useState(initialLeft);
+  const [right,setRight] = useState(photos.find(p=>p.id!==initialLeft && p.capture_date)?.id || photos.find(p=>p.id!==initialLeft)?.id || '');
+  const [mode,setMode] = useState('side'); const [split,setSplit] = useState(50);
+  const a = photos.find(p=>p.id===left), b = photos.find(p=>p.id===right), pair = pairs.find(p=>p.id===mode);
+  if (photos.length < 2) return <p className="empty-state">The record is beginning. A second observation will open a new view of this place.</p>;
+  return <div className="comparison-widget">
+    <div className="comparison-toolbar"><span className="micro">A CLOSER LOOK</span><label className="mode-label">View <select aria-label="Comparison mode" value={mode} onChange={e=>setMode(e.target.value)}><option value="side">Side by side</option>{pairs.map(p=><option key={p.id} value={p.id}>Curated before & after</option>)}</select></label></div>
+    {pair ? <><div className="slider-stage"><img src={`/api/comparison-media/${pair.id}/after`} alt="Later photograph in the curator-approved comparison"/><img className="slider-before" style={{ clipPath: `inset(0 ${100-split}% 0 0)` }} src={`/api/comparison-media/${pair.id}/before`} alt="Earlier photograph in the curator-approved comparison"/><div className="slider-line" style={{ left: `${split}%` }}><span>↔</span></div><div className="slider-label left">{photoDate(photos.find(p=>p.id===pair.before_id)!)}</div><div className="slider-label right">{photoDate(photos.find(p=>p.id===pair.after_id)!)}</div></div><label className="range-label">Reveal earlier photograph <input aria-label="Reveal earlier photograph" type="range" min="0" max="100" value={split} onChange={e=>setSplit(+e.target.value)}/></label><p className="comparison-note">Curator-reviewed framing · {pair.caption}</p></> : <><div className="comparison-grid">{([{ photo:a, value:left, setter:setLeft, label:'Left photograph' },{ photo:b, value:right, setter:setRight, label:'Right photograph' }]).map(({ photo,value,setter,label })=>photo && <figure key={label}><div className="comparison-image"><img src={`/api/media/${photo.id}`} alt={photo.caption || 'Glacier observation'}/><span className="image-date">{photoDate(photo)}</span></div><figcaption><label>{label}<select aria-label={label} value={value} onChange={e=>setter(e.target.value)}>{photos.map(p=><option key={p.id} value={p.id}>{photoDate(p)} · {p.caption.slice(0,55)}</option>)}</select></label><span className="photo-credit">{creditLabel(photo.credit)}</span></figcaption></figure>)}</div><p className="comparison-note"><span aria-hidden="true">ⓘ</span> Different framing and conditions. These views are not aligned measurements of change. Unknown dates remain undated.</p></>}
+  </div>;
+}
