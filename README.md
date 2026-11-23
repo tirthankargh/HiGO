@@ -33,7 +33,7 @@ Stop the development server before starting production on the same port. `npm ru
 - **Atlas (`/atlas`):** pan/zoom, world view, inventory polygons, name/ID search, region and viewport filtering, layer controls, shareable glacier selections, inventory details and contribution links.
 - **Glacier journals:** photographs, metadata dialogs, dated observations, a separate note for undated images, and a contribution link.
 - **Drang Drung comparisons:** selectable side-by-side views. The supplied images have different framing and incomplete chronology, so no seed pair is approved for a before-and-after slider.
-- **Contribute:** choose a JPEG, PNG, or WebP, review available EXIF, add optional context, and confirm permission. The original is saved privately and a private receipt URL shows review status. There are no contributor accounts.
+- **Contribute:** choose a JPEG, PNG, or WebP, search the RGI inventory or supply a glacier name and region, review available EXIF, add optional context, and confirm permission. The original is saved privately and a private receipt URL shows review status. There are no contributor accounts.
 - **Curator desk:** approve, reject, or unpublish observations; correct metadata; assign a glacier and optional viewpoint; download private originals; create or unpublish comparison pairs.
 
 An approved observation must have an assigned journal glacier or a valid RGI inventory ID. Atlas contributions preserve their RGI ID separately from camera coordinates and remain private until approved. The curator can correct that ID. Approved observations appear in the selected inventory glacier’s panel even without an existing journal. Contributions with uncertain glacier identification are accepted into the private queue.
@@ -52,6 +52,18 @@ To expand, place another unmodified RGI v7 **individual glacier** directory at t
 
 RGI data: **RGI Consortium (2023), Randolph Glacier Inventory – A Dataset of Global Glacier Outlines, Version 7.0**, Boulder, Colorado USA, NSIDC, [doi:10.5067/F6JMOVY5NAVZ](https://doi.org/10.5067/F6JMOVY5NAVZ), [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Map tiles are simplified derivatives; metadata is drawn from the supplied files. See the [RGI user guide and use limitations](https://rgidata.org/user_guide/01_introduction.html). The base land geometry comes from [Natural Earth](https://www.naturalearthdata.com/about/terms-of-use/), public domain, distributed via `world-atlas` (1:110 million scale). `HIGO_ATLAS_PATH` may override the catalogue location; keep it outside `public/`.
 
+## Google Drive originals (personal account)
+
+New submissions can send their **private originals** to a personal Google Drive account. This is optional; local storage remains the default until you explicitly connect Drive. See [the setup walkthrough](RUN_AND_CHECK.md#connect-a-personal-google-drive) for Google Cloud and OAuth steps. Never paste credentials or tokens into chat or commit them.
+
+Set `HIGO_PHOTO_STORAGE=drive` only after `GOOGLE_DRIVE_CLIENT_ID`, `GOOGLE_DRIVE_CLIENT_SECRET`, `GOOGLE_DRIVE_REFRESH_TOKEN`, and `GOOGLE_DRIVE_FOLDER_ID` are configured in `.env.local`. The `npm run drive:connect` helper creates a private, app-owned folder with the `drive.file` scope and stores its ID and an offline refresh token in `.env.local` (mode 0600). It reuses the same folder when reconnecting. It does not move existing originals. The account owner must keep the folder private. OAuth client secrets and refresh tokens grant access to app-created files and must remain secret.
+
+Drive mode validates and prepares images locally, then stores the original via a resumable Drive API upload before creating a pending database record. The optimized, metadata-stripped display and thumbnail copies stay in `HIGO_DATA_DIR`; approved media is served through HiGO and originals are fetched only after curator authorization. Existing and seeded originals remain local. Switching back to local changes storage for **new** submissions only: existing `drive:` references continue to need valid Drive credentials, including for curator downloads and comparisons. Configure the same private environment variables on any future hosting environment; Drive alone is not application hosting and does not replace the observation/atlas databases or local derivatives.
+
+If Drive cannot authenticate, is full, or an upload fails, HiGO reports a failed submission and does not silently fall back to local storage. Interrupted uploads may be resumed. Google OAuth tokens can be revoked or expire; External OAuth apps in Testing mode generally issue refresh tokens that expire after seven days. Reconnect using the same account and OAuth client. See [Google’s refresh-token documentation](https://developers.google.com/identity/protocols/oauth2#expiration). A successful real connection and upload require the operator’s Google Cloud project, account consent and credentials; automated tests mock Google and do not prove a live connection.
+
+**Backups:** `npm run backup` includes the databases, local media and a Drive file-ID manifest, but **not Drive originals**. Back up the Drive folder separately and retain matching credentials and database backups. Do not treat Drive synchronization as your only backup. Restore both the Drive originals and the corresponding SQLite database together. If an upload was interrupted after Google accepted it but before HiGO received its ID, an orphaned Drive file may require manual cleanup.
+
 ## Review and comparisons
 
 For each observation, the curator can set a date with day/month/year precision or leave it unknown. Approximate dates retain their label. Camera coordinates refer to the photographer’s position, not the glacier, and remain private. Viewpoint descriptions appear with approved observations.
@@ -67,7 +79,7 @@ Default local layout (all ignored by Git):
 ```text
 data/
   atlas.sqlite               # derived RGI records and vector tiles (read-only at runtime)
-  higo.sqlite                # glaciers, observations, viewpoints, comparisons
+  higo.sqlite                # glaciers, observations, viewpoints, comparisons and Drive references
   higo.sqlite-wal / -shm      # SQLite runtime files, when present
   photos/<observation-id>/
     original                 # exact submitted bytes, private
@@ -129,11 +141,11 @@ Browser tests launch a production server on port 3100 against a separate tempora
 ## Back up and restore
 
 1. Stop the app to keep database and media in sync.
-2. Run `npm run backup`. It takes a consistent SQLite backup and copies the derived atlas database plus original, display, and comparison files into a timestamped ignored directory under `backups/`.
+2. Run `npm run backup`. It takes a consistent SQLite backup and copies the derived atlas database plus local original, display, and comparison files into a timestamped ignored directory under `backups/`. Back up Drive originals separately.
 3. Store a copy outside this computer. Keep `.env.local` separately and securely; it is intentionally not included in the backup.
 4. To restore, stop the app and set `HIGO_DATA_DIR` to an extracted backup directory (or copy its contents into a new data directory). Start the app with the same secrets to retain sessions, or fresh secrets to invalidate them. Confirm image counts and open a photograph before resuming collection.
 
-The observation database migrates additively to SQLite `user_version=2`, adding nullable `rgi_id` without changing existing photos or journal assignments. Future schema changes should use versioned migrations and backups; seed imports only add missing initial records. Source changes alone do not erase data.
+The observation database migrates additively to SQLite `user_version=3`, adding RGI and contributor-supplied glacier name/region fields without changing existing photos or journal assignments. Future schema changes should use versioned migrations and backups; seed imports only add missing initial records. Source changes alone do not erase data.
 
 ## Deliberately deferred
 

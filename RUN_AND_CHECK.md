@@ -53,9 +53,73 @@ Stop the development server first; both use port 3000. These commands run locall
 4. Try the region selector, **Search this map area**, inventory/journal layer toggles, **World**, **All coverage**, and an unmatched search. Try selecting an outline directly. Most inventory glaciers are unnamed; search their RGI ID instead.
 5. Select `RGI2000-v7.0-G-14-00001`. Follow **Contribute to this glacier**, submit a permitted photograph, and check its RGI ID at `/admin`. Approve it without assigning a journal. Reopen that atlas glacier: its reviewed observation should now appear. Unpublishing removes it. This manual check creates real data; the automated browser test uses an isolated observation database instead.
 6. At 390 px width, the map, selected record and search list stack vertically. Check touch pan/pinch, keyboard search and selection, and reduced-motion settings. A browser without WebGL should still offer search and record details.
-7. Featured stories are above the map on the home page. Switch stories using **01 / 02**. These are field records until suitable curated pairs exist; there are no fabricated retreat claims.
+7. Featured stories are below the map on the home page. Switch stories using **01 / 02**. These are field records until suitable curated pairs exist; there are no fabricated retreat claims.
 
 If the inventory is missing, stop the server, run `npm run atlas:import`, then restart. Setup also imports it. New RGI v7 folders can be added and reimported; see the README for regional expansion and polar limits. The derived SQLite catalogue is ignored; originals stay untouched. Browser tests need this local catalogue and use it read-only.
+
+## Connect a personal Google Drive
+
+Google Drive is **not connected automatically**. Until you complete this one-time setup, new submissions are saved locally. You will need a Google account, access to [Google Cloud Console](https://console.cloud.google.com/), and this project on your computer. Google may change the names or location of its console menus.
+
+### 1. Enable Google Drive and create credentials
+
+1. Open [Google Cloud Console](https://console.cloud.google.com/) and sign in with the Google account whose Drive should receive the photos. Create a project, or select an existing project from the project selector at the top.
+2. Open **APIs & Services → Library**, search for **Google Drive API**, open it and click **Enable**. Make sure your selected project is still correct.
+3. Open **APIs & Services → OAuth consent screen** (or **Google Auth Platform**). Set up the app with an app name such as `HiGO`, your support email and contact email. For a personal account, choose **External** if asked for the audience.
+4. Under **Audience** or **Test users**, add the same Google account you will use to connect Drive. Leave the app in Testing if this is a personal setup. Save the changes.
+5. Open **Clients** or **Credentials**, choose **Create client** / **Create credentials → OAuth client ID**, and choose **Desktop app** as the application type. Name it `HiGO` and create it. Copy the **Client ID** and **Client secret** from the resulting screen (you can open the client later to find them again).
+
+### 2. Connect the account to HiGO
+
+1. Open this project's `.env.local` file in your editor. Keep its existing lines, including the admin password and session secret. Add the following two lines, replacing the placeholders with your own values; if either line already exists, update it instead of adding a duplicate:
+
+   ```env
+   GOOGLE_DRIVE_CLIENT_ID=your-client-id
+   GOOGLE_DRIVE_CLIENT_SECRET=your-client-secret
+   ```
+
+   Save the file. Keep it private: do not commit it or share its contents. If `.env.local` does not exist yet, run `npm run setup` first.
+2. In a terminal opened in this project, run:
+
+   ```sh
+   npm run drive:connect
+   ```
+
+3. Open the Google authorization link printed in the terminal. Sign in with the account added as a test user, review the requested access, and allow it. If Google displays a testing or unverified-app screen, proceed only if it identifies the app you just created. Keep the terminal open during this step.
+4. The browser should say **Authorization received**. Return to the terminal and wait for **Google Drive connected**. The script creates a private folder named **HiGO — private original submissions** and saves the necessary connection settings in `.env.local`. You do not need to copy the refresh token or folder ID yourself.
+5. If HiGO is already running, stop it with **Control+C** in its terminal. Start it again so it reads the new settings:
+
+   ```sh
+   npm run dev
+   ```
+
+### 3. Test a photo from the website through to Drive
+
+1. Open [the contribution form](http://127.0.0.1:3000/contribute). Choose a photograph you have permission to use, enter a distinctive note such as `My Drive upload test`, complete the required fields and permission checkbox, and click **Send for review**.
+2. Confirm that the website shows a receipt saying the photo was saved and is awaiting review. This is a real submission in your local collection.
+3. Open [Google Drive](https://drive.google.com/) in the connected account. Find **HiGO — private original submissions** and check that a new file has appeared. Its name is an internal ID ending in `-original`, not necessarily the name of the file you chose. Open or download it to verify it is your test photo. Keep the folder private.
+4. Open [the curator desk](http://127.0.0.1:3000/admin) and sign in with the `ADMIN_PASSWORD` from `.env.local`. Open your test submission. It should be pending; approve and save it when you are ready for it to appear publicly. If it has an inventory or journal association, open that glacier's atlas record or journal to check the approved display copy. You can return it to pending afterwards.
+
+The original goes to Drive when the submission succeeds, **before** approval. HiGO keeps the database and optimized display copies locally; a contributor is not redirected to Google Drive. Existing local originals are not moved. If Drive authentication or upload fails, the form reports an error instead of silently saving the original locally.
+
+### If something goes wrong
+
+- **Access blocked / not a test user:** In the same Google Cloud project, add the Google account you used to the OAuth app's test users, save, and run `npm run drive:connect` again.
+- **Missing client ID or secret:** Check the two lines in `.env.local`, save, and rerun the connection command from this project directory. Use a **Desktop app** OAuth client.
+- **No new file or a storage error:** Check that the terminal reported a successful connection, restart HiGO, sign in to the same Drive account, and try another permitted photo. Check Drive storage space. If the connection expired or was revoked, reconnect as described below.
+- **No photo on the map after approval:** The reviewer must associate the submission with an inventory glacier or mapped journal; a supplied name alone does not place a marker.
+
+For backups, run `npm run backup` and separately back up the Drive folder. The backup contains a manifest of Drive file IDs but **does not contain the Drive originals**. The local database, display copies and Drive originals are all needed for a complete restore.
+
+Google may expire an External Testing app’s refresh token after seven days. If uploads stop with a storage error, run `npm run drive:connect` again using the **same account and OAuth client**; it reuses the existing folder. A revoked/expired connection never silently falls back to local storage. Changing `HIGO_PHOTO_STORAGE=local` affects only new uploads; old Drive originals still require valid credentials for curator access and comparisons. See [Google’s refresh-token documentation](https://developers.google.com/identity/protocols/oauth2#expiration).
+
+The automated tests use a fake Google Drive API; a real upload requires completing these account steps. For a hosted instance, set the same credentials as private server environment variables and keep the SQLite database and display images on persistent storage.
+
+## Contribute a glacier name
+
+In `/contribute`, choose a photo and search **Find a glacier in the inventory** by RGI ID or name. Select a result to attach it, or leave it empty and enter your own glacier name and region. The reviewer sees and can correct these fields and assign a verified inventory ID or existing journal before approval. A name alone does not place a marker: the glacier needs an RGI association or a mapped journal. Camera coordinates refer to the camera, not the glacier.
+
+On the atlas, gold markers and the **Only glaciers with photographs** filter identify records with approved photos. Drang Drung’s inventory link is labeled provisional; Panchinala remains off the map until its association is confirmed. Pending and rejected submissions do not appear in this layer.
 
 ## 3. Sign in as curator
 
@@ -125,6 +189,8 @@ Browser screenshots are saved to:
 
 - `test-results/home-desktop.png`
 - `test-results/home-mobile.png`
+- `test-results/home-mobile-viewport.png`
+- `test-results/about-mobile.png`
 - `test-results/atlas-desktop.png`
 - `test-results/atlas-selected.png`
 - `test-results/atlas-mobile.png`
@@ -145,7 +211,7 @@ Stop the app, then run:
 npm run backup
 ```
 
-The command copies the observation and atlas SQLite databases, originals, optimized images, and comparison images into a timestamped directory under `backups/`. Keep an additional copy elsewhere. Keep `.env.local` separately and privately.
+The command copies the observation and atlas SQLite databases, local originals, optimized images, and comparison images into a timestamped directory under `backups/`. Keep an additional copy elsewhere. Back up the Drive originals separately; the command includes only their IDs. Keep `.env.local` separately and privately.
 
 To restore without overwriting existing data, set `HIGO_DATA_DIR` in `.env.local` to the absolute path of a backup directory, then restart. See [README.md](README.md#back-up-and-restore) for details.
 
@@ -168,14 +234,14 @@ To restore without overwriting existing data, set `HIGO_DATA_DIR` in `.env.local
 
 The implemented local MVP includes the 56,149-outline interactive atlas, featured stories, inventory-linked contributions, the two journals, all six supplied photographs, real persistent submissions, private review, publication/unpublication, private originals, editable metadata/viewpoints, curated comparison crops and slider, seed import, and backup tooling.
 
-Verified on **6 November 2026**, using Node.js **26.5.0**:
+Verified on **10 November 2026**, using Node.js **26.5.0**:
 
 | Check | Result |
 | --- | --- |
 | `npm run typecheck` | Passed |
-| `npm test` | **10 passed** |
+| `npm test` | **12 passed** |
 | `npm run build` | Passed; production routes generated |
-| `npm run test:e2e` | **6 passed**, including atlas search/selection, inventory submissions, full submission/review and comparison workflows |
+| `npm run test:e2e` | **8 passed**, including atlas search/selection, inventory submissions, full submission/review and comparison workflows |
 | Desktop and mobile screenshots | Inspected; pages fit at 390 px without horizontal scrolling |
 | Dependency audit after patching image library | **0 vulnerabilities reported** |
 | Seed import, restart persistence, original preservation, and backup | Verified by automated tests |

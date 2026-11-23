@@ -4,10 +4,12 @@ import { useRouter } from 'next/navigation';
 import exifr from 'exifr';
 import type { Glacier } from '@/lib/types';
 import { MAX_BYTES, MAX_PIXELS } from '@/lib/validation';
+import GlacierPicker, { type ChosenInventory } from './GlacierPicker';
 export default function ContributionForm({ glaciers, initialGlacier, inventory }: { glaciers: Glacier[]; initialGlacier:string; inventory?:{id:string;name:string}|null }) {
   const router=useRouter(), input=useRef<HTMLInputElement>(null);
   const [file,setFile]=useState<File|null>(null), [preview,setPreview]=useState(''), [busy,setBusy]=useState(false), [reading,setReading]=useState(false), [error,setError]=useState('');
   const [date,setDate]=useState(''), [precision,setPrecision]=useState('unknown'), [credit,setCredit]=useState(''), [latitude,setLatitude]=useState(''), [longitude,setLongitude]=useState(''), [exifMessage,setExifMessage]=useState('');
+  const [chosen,setChosen]=useState<ChosenInventory|null>(inventory||null);
   const generation=useRef(0);
   useEffect(()=>{ if(!file) { setPreview(''); return; } const url=URL.createObjectURL(file); setPreview(url); return ()=>URL.revokeObjectURL(url); },[file]);
   async function select(selected?: File) {
@@ -35,13 +37,15 @@ export default function ContributionForm({ glaciers, initialGlacier, inventory }
     catch(e) { setError(e instanceof Error?e.message:'The upload did not finish. Please try again.'); setBusy(false); }
   }
   return <form className="contribution-form" onSubmit={submit}>
-    {inventory&&<div className="info-note"><b>For {inventory.name||'an unnamed glacier'}</b><br/>{inventory.id}<p>This is the glacier selected in the atlas, not the camera’s location. The association will be reviewed.</p><input type="hidden" name="rgi_id" value={inventory.id}/></div>}
+    {chosen&&<div className="info-note"><b>For {chosen.name||'an unnamed glacier'}</b><br/>{chosen.id}<p>This is the glacier selected in the atlas, not the camera’s location. The association will be reviewed.</p></div>}
     <div className="form-section"><div className="form-step-heading"><span>01</span><div><h2>Choose your photograph</h2><p>A moment from the mountains, old or new.</p></div></div>
       <input ref={input} id="photo-file" className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Choose photograph" onChange={e=>select(e.target.files?.[0])} disabled={busy}/>
       {file ? <div className="upload-preview"><img src={preview} alt="Your selected photograph"/><div><b>{file.name}</b><span>{(file.size/1024/1024).toFixed(1)} MB · Original preserved</span><button type="button" className="text-link" disabled={busy} onClick={()=>input.current?.click()}>Choose a different photo ↗</button></div></div> : <button type="button" className="dropzone" disabled={reading} onClick={()=>input.current?.click()} onDragOver={e=>e.preventDefault()} onDrop={e=>{e.preventDefault(); select(e.dataTransfer.files?.[0]);}}><span className="upload-symbol" aria-hidden="true">↑</span><b>{reading?'Reading your photograph…':'Drop a photograph here'}</b><span>or choose a file from your device</span><small>JPEG, PNG, or WebP · Up to 20 MB / 40 megapixels</small></button>}
     </div>
     {file && <><div className="form-section"><div className="form-step-heading"><span>02</span><div><h2>Add what you know</h2><p>Missing details are welcome. We’ll keep them unknown.</p></div></div><p className="info-note">{exifMessage}</p>
       <label>Which glacier?<select name="glacier_id" defaultValue={initialGlacier}><option value="">Not sure / another glacier</option>{glaciers.map(g=><option key={g.id} value={g.id}>{g.name} · {g.region}</option>)}</select></label>
+      <GlacierPicker chosen={chosen} onChoose={setChosen}/>
+      <div className="form-row"><label>Glacier name as you know it <span className="optional">Optional</span><input name="reported_glacier_name" maxLength={200} placeholder="A local name or another name"/></label><label>Glacier region <span className="optional">Optional</span><input name="reported_region" maxLength={200} placeholder="Valley, mountain range or region"/></label></div><p className="form-fineprint">These describe the glacier, not your camera position. A curator will review any map association.</p>
       <div className="form-row"><label>How precisely do you know the date?<select name="date_precision" value={precision} onChange={e=>{const v=e.target.value;setPrecision(v);setDate(d=>v==='year'?d.slice(0,4):v==='month'?d.slice(0,7):v==='unknown'?'':d);}}><option value="unknown">I don’t know the date</option><option value="year">Year only</option><option value="month">Month and year</option><option value="day">Exact day</option></select></label><label>Capture date<input name="capture_date" type={precision==='day'?'date':precision==='month'?'month':'text'} inputMode={precision==='year'?'numeric':undefined} value={date} disabled={precision==='unknown'} required={precision!=='unknown'} placeholder={precision==='unknown'?'Date unknown':'YYYY'} onChange={e=>setDate(e.target.value)}/></label></div>
       {precision!=='unknown' && <label className="checkbox-label"><input type="checkbox" name="approximate" value="yes"/>This date is approximate</label>}
       <label>Photographer credit <span className="optional">Optional</span><input name="credit" maxLength={200} value={credit} onChange={e=>setCredit(e.target.value)} placeholder="Name to display with the photograph"/></label>

@@ -17,7 +17,8 @@ test('journal, comparison selectors, photo metadata dialog, and responsive layou
   await page.goto('/glaciers/panchinala');await expect(page.locator('.timeline article')).toHaveCount(2);await expect(page.locator('.photo-card')).toHaveCount(3);
   await page.setViewportSize({width:390,height:844});
   for(const path of ['/','/glaciers/drang-drang','/glaciers/panchinala','/contribute','/about','/admin']){await page.goto(path);expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth), `Horizontal overflow on ${path}`).toBe(true);}
-  await page.goto('/');await expect(page.getByTestId('atlas-map')).toHaveAttribute('data-ready','true');await expect(page.locator('.atlas-result').first()).toBeVisible();await page.screenshot({path:'test-results/home-mobile.png',fullPage:true});
+  await page.goto('/');await expect(page.getByTestId('atlas-map')).toHaveAttribute('data-ready','true');await expect(page.locator('.atlas-result').first()).toBeVisible();await page.screenshot({path:'test-results/home-mobile.png',fullPage:true});await page.screenshot({path:'test-results/home-mobile-viewport.png'});
+  await page.goto('/about');await expect(page.getByRole('heading',{level:1})).toContainText('Every photograph');await expect(page.getByText('The Himalayan Glacier Observatory',{exact:false}).first()).toBeVisible();await page.screenshot({path:'test-results/about-mobile.png',fullPage:true});
 });
 
 test('anonymous upload → private pending → admin approval → visible journal → unpublish',async({page,browser})=>{

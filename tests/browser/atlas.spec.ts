@@ -43,21 +43,50 @@ test('inventory contribution stays private until review and survives a reload wi
   await expect(page.locator('.contribution-form')).toContainText(first);
   await page.getByLabel('Choose photograph',{exact:true}).setInputFiles('Panchinala/DSCF1629.jpg');
   await expect(page.getByText('No capture date found.',{exact:false})).toBeVisible();
+  await page.getByLabel('Glacier name as you know it',{exact:false}).fill('Local glacier name');await page.getByLabel('Glacier region',{exact:false}).fill('A remembered valley');
   await page.getByLabel('A note from this moment').fill('Inventory association test photo');
   await page.getByLabel('Contact email').fill('atlas-private@example.test');
   await page.getByRole('checkbox',{name:/I took this photograph/}).check();
   await page.getByRole('button',{name:'Send for review'}).click();await expect(page).toHaveURL(/submission\//);
   const pending=await (await request.get(`/api/atlas/${first}`)).json();expect(pending.photos).toHaveLength(0);
+  expect((await (await request.get('/api/atlas/photographed')).json()).glaciers.some((g:{id:string})=>g.id===first)).toBe(false);
   await page.goto('/admin');await page.getByLabel('Admin password').fill('higo-browser-test-password');await page.getByRole('button',{name:'Sign in',exact:false}).click();
   await page.getByRole('link',{name:/Inventory association test photo/}).click();
   await expect(page.getByLabel('RGI inventory ID',{exact:false})).toHaveValue(first);
+  await expect(page.getByLabel('Contributor glacier name')).toHaveValue('Local glacier name');await expect(page.getByLabel('Contributor glacier region')).toHaveValue('A remembered valley');
   await expect(page.getByLabel('Journal glacier')).toHaveValue('');
   const id=page.url().split('/').pop()!;
   expect((await request.get(`/api/media/${id}`)).status()).toBe(404);
   await page.getByLabel('Review status').selectOption('approved');await page.getByRole('button',{name:'Save review'}).click();await expect(page.getByRole('status')).toContainText('Observation saved');
-  const approved=await (await request.get(`/api/atlas/${first}`)).json();expect(approved.photos).toHaveLength(1);expect(JSON.stringify(approved)).not.toContain('atlas-private');expect(approved.photos[0].contact).toBeUndefined();
-  await page.goto(`/atlas?glacier=${first}`);await expect(page.locator('.atlas-linked-photos')).toContainText('Inventory association test photo');await page.reload();await expect(page.locator('.atlas-linked-photos')).toContainText('Inventory association test photo');
+  const approved=await (await request.get(`/api/atlas/${first}`)).json();expect(approved.photos).toHaveLength(1);expect(JSON.stringify(approved)).not.toContain('atlas-private');expect(approved.photos[0].contact).toBeUndefined();expect(approved.photos[0].reported_glacier_name).toBe('Local glacier name');
+  expect((await (await request.get('/api/atlas/photographed')).json()).glaciers.some((g:{id:string})=>g.id===first)).toBe(true);
+  expect((await (await request.get('/api/atlas?photos=1')).json()).results.some((g:{id:string})=>g.id===first)).toBe(true);
+  await page.goto(`/atlas?glacier=${first}`);await expect(page.locator('.atlas-linked-photos')).toContainText('Inventory association test photo');await page.getByLabel('Only glaciers with photographs').check();await expect(page.locator('.atlas-result').filter({hasText:first})).toContainText('PHOTOGRAPHIC RECORD');await page.reload();await expect(page.locator('.atlas-linked-photos')).toContainText('Inventory association test photo');
   expect((await request.get(`/api/media/${id}?variant=original`)).status()).toBe(404);
   await page.goto(`/admin/observations/${id}`);await page.getByLabel('Review status').selectOption('pending');await page.getByRole('button',{name:'Save review'}).click();await expect(page.getByRole('status')).toContainText('Observation saved');
-  expect((await (await request.get(`/api/atlas/${first}`)).json()).photos).toHaveLength(0);
+  expect((await (await request.get(`/api/atlas/${first}`)).json()).photos).toHaveLength(0);expect((await (await request.get('/api/atlas/photographed')).json()).glaciers.some((g:{id:string})=>g.id===first)).toBe(false);
+});
+
+
+test('contribution inventory search selects an RGI record and supports a contributor name',async({page})=>{
+  await page.goto('/contribute');
+  await page.getByLabel('Choose photograph',{exact:true}).setInputFiles('Panchinala/DSCF1629.jpg');
+  await page.getByLabel('Find a glacier in the inventory',{exact:false}).fill(first);
+  await expect(page.getByRole('button',{name:new RegExp(first)})).toBeVisible();
+  await page.getByRole('button',{name:new RegExp(first)}).click();
+  await expect(page.locator('input[name=rgi_id]')).toHaveValue(first);
+  await page.getByLabel('Glacier name as you know it',{exact:false}).fill('A name from the valley');
+  await page.getByLabel('Glacier region',{exact:false}).fill('Upper valley');
+  await expect(page.getByLabel('Glacier region',{exact:false})).toHaveValue('Upper valley');
+  await page.getByRole('button',{name:'Remove',exact:true}).click();await expect(page.locator('input[name=rgi_id]')).toHaveValue('');
+});
+
+
+test('a contributor can propose a glacier name and region without an inventory match',async({page,request})=>{
+  await page.goto('/contribute');await page.getByLabel('Choose photograph',{exact:true}).setInputFiles('Panchinala/DSCF1629.jpg');
+  await page.getByLabel('Glacier name as you know it',{exact:false}).fill('Unmatched local glacier');await page.getByLabel('Glacier region',{exact:false}).fill('A remote valley');
+  await page.getByLabel('A note from this moment').fill('Unmatched named observation');await page.getByRole('checkbox',{name:/I took this photograph/}).check();await page.getByRole('button',{name:'Send for review'}).click();await expect(page).toHaveURL(/submission\//);
+  await page.goto('/admin');await page.getByLabel('Admin password').fill('higo-browser-test-password');await page.getByRole('button',{name:'Sign in',exact:false}).click();
+  await page.getByRole('link',{name:/Unmatched named observation/}).click();await expect(page.getByLabel('Contributor glacier name')).toHaveValue('Unmatched local glacier');await expect(page.getByLabel('Contributor glacier region')).toHaveValue('A remote valley');
+  const id=page.url().split('/').pop();expect((await request.get(`/api/media/${id}`)).status()).toBe(404);
 });

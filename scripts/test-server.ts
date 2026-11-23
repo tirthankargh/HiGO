@@ -4,7 +4,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 async function main(){
   const dir=await mkdtemp(path.join(tmpdir(),'higo-browser-'));
-  process.env.HIGO_DATA_DIR=dir;process.env.ADMIN_PASSWORD='higo-browser-test-password';process.env.SESSION_SECRET='higo-browser-test-session-secret-at-least-32-characters';
+  process.env.HIGO_DATA_DIR=dir;process.env.HIGO_PHOTO_STORAGE='local';process.env.ADMIN_PASSWORD='higo-browser-test-password';process.env.SESSION_SECRET='higo-browser-test-session-secret-at-least-32-characters';
   process.env.HIGO_ATLAS_PATH=path.resolve('data/atlas.sqlite');
   const {seed}=await import('../lib/seed');await seed();
   const child=spawn(process.execPath,['node_modules/next/dist/bin/next','start','--hostname','127.0.0.1','--port','3100'],{stdio:'inherit',env:process.env});

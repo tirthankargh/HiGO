@@ -7,7 +7,7 @@ import { errorResponse, limitedForm } from '@/lib/http';
 import { atlasGlacier } from '@/lib/atlas';
 export const runtime = 'nodejs';
 export async function POST(request: Request) {
-  let storedId: string | undefined;
+  let storedId: string | undefined, storedOriginal: string | undefined;
   try {
     checkOrigin(request);
     if (!rateLimit('uploads', 60, 3600_000)) throw new InputError('The upload limit has been reached. Please try again later.', 429);
@@ -26,8 +26,9 @@ export async function POST(request: Request) {
     if ((latitude === null) !== (longitude === null)) throw new InputError('Provide both camera coordinates, or leave both blank.');
     const buffer = Buffer.from(await file.arrayBuffer()), extracted = await extractMetadata(buffer);
     const id = randomUUID(), receipt = randomBytes(32).toString('hex');
-    const image = await storePhoto(id, buffer); storedId = id;
-    insertObservation({ id, glacier_id: glacierId || null, rgi_id:rgiId||null, viewpoint_id: null, filename: file.name.slice(0,255), ...image, ...date,
+    const reported_glacier_name=textField(form,'reported_glacier_name',200), reported_region=textField(form,'reported_region',200);
+    const image = await storePhoto(id, buffer, true); storedId = id; storedOriginal=image.original_path;
+    insertObservation({ id, glacier_id: glacierId || null, rgi_id:rgiId||null, reported_glacier_name, reported_region, viewpoint_id: null, filename: file.name.slice(0,255), ...image, ...date,
       approximate: form.get('approximate') === 'yes' ? 1 : 0,
       metadata_source: date.capture_date ? (extracted.date === date.capture_date && date.date_precision === 'day' ? 'Camera metadata · confirmed by contributor' : 'Contributor supplied') : 'Date not supplied',
       latitude, longitude, location_description, credit, source, caption, contact,
@@ -35,5 +36,5 @@ export async function POST(request: Request) {
       status: 'pending', receipt_token: receipt, created_at: new Date().toISOString(), extracted_metadata: JSON.stringify(extracted) });
     storedId = undefined;
     return Response.json({ receiptUrl: `/submission/${receipt}` }, { status: 201 });
-  } catch (error) { if (storedId) await removePhoto(storedId).catch(() => {}); return errorResponse(error); }
+  } catch (error) { if (storedId) await removePhoto(storedId,storedOriginal).catch(() => { console.error('Failed to clean up a photo after a database error. Check Drive and local storage for an orphaned file.'); }); return errorResponse(error); }
 }

@@ -32,9 +32,12 @@ export function db() {
   if (!(database.prepare('PRAGMA table_info(observations)').all() as {name:string}[]).some(c=>c.name==='rgi_id')) {
     database.exec('ALTER TABLE observations ADD COLUMN rgi_id TEXT; CREATE INDEX observation_rgi_status ON observations(rgi_id,status);');
   }
+  const columns = (database.prepare('PRAGMA table_info(observations)').all() as {name:string}[]).map(c=>c.name);
+  if(!columns.includes('reported_glacier_name')) database.exec("ALTER TABLE observations ADD COLUMN reported_glacier_name TEXT NOT NULL DEFAULT ''");
+  if(!columns.includes('reported_region')) database.exec("ALTER TABLE observations ADD COLUMN reported_region TEXT NOT NULL DEFAULT ''");
   // Correct the original seed name without overwriting any other curator edit.
   database.prepare("UPDATE glaciers SET name='Drang Drung' WHERE id='drang-drang' AND name='Drang Drang'").run();
-  database.exec('PRAGMA user_version=2;');
+  database.exec('PRAGMA user_version=3;');
   return database;
 }
 // node:sqlite returns null-prototype rows; React server/client boundaries require plain objects.
@@ -45,8 +48,8 @@ export function observations(glacierId?: string): Observation[] {
   return (glacierId ? db().prepare('SELECT * FROM observations WHERE glacier_id=? ORDER BY capture_date DESC, created_at DESC').all(glacierId) : db().prepare('SELECT * FROM observations ORDER BY created_at DESC').all()).map(row=>({...row})) as Observation[];
 }
 export function publicObservation(o: Observation): PublicObservation {
-  const { id, glacier_id, viewpoint_id, width, height, capture_date, date_precision, approximate, metadata_source, location_description, credit, source, caption } = o;
-  return { id, glacier_id, viewpoint_id, width, height, capture_date, date_precision, approximate, metadata_source, location_description, credit, source, caption };
+  const { id, glacier_id, viewpoint_id, width, height, capture_date, date_precision, approximate, metadata_source, location_description, credit, source, caption, reported_glacier_name, reported_region } = o;
+  return { id, glacier_id, viewpoint_id, width, height, capture_date, date_precision, approximate, metadata_source, location_description, credit, source, caption, reported_glacier_name, reported_region };
 }
 export function published(glacierId: string) { return observations(glacierId).filter(o => o.status === 'approved').map(publicObservation); }
 export function viewpoints(glacierId: string) { return db().prepare('SELECT * FROM viewpoints WHERE glacier_id=? ORDER BY name').all(glacierId).map(row=>({...row})) as Viewpoint[]; }

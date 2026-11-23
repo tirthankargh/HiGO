@@ -27,7 +27,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
         viewpointId = (database.prepare('SELECT id FROM viewpoints WHERE glacier_id=? AND name=?').get(glacierId,viewpoint) as { id: string }).id; }
       database.prepare(`UPDATE observations SET glacier_id=?,viewpoint_id=?,capture_date=?,date_precision=?,approximate=?,metadata_source=?,latitude=?,longitude=?,location_description=?,credit=?,source=?,caption=?,status=? WHERE id=?`).run(glacierId || null, viewpointId, date.capture_date,date.date_precision,form.get('approximate')==='yes'?1:0,metadata || 'Curator supplied',latitude,longitude,location,credit,source,caption,status,id);
       // Metadata changes invalidate previous alignment/chronology approval.
-      database.prepare('UPDATE observations SET rgi_id=? WHERE id=?').run(rgiId||null,id);
+      database.prepare('UPDATE observations SET rgi_id=?,reported_glacier_name=?,reported_region=? WHERE id=?').run(rgiId||null,textField(form,'reported_glacier_name',200),textField(form,'reported_region',200),id);
       database.prepare('UPDATE comparisons SET status=\'draft\' WHERE before_id=? OR after_id=?').run(id,id);
       database.exec('COMMIT');
     } catch(error) { database.exec('ROLLBACK'); throw error; }

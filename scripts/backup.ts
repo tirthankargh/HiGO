@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { cp, mkdir } from 'node:fs/promises';
+import { cp, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 async function main() {
   if (existsSync('.env.local')) process.loadEnvFile('.env.local');
@@ -12,6 +12,8 @@ async function main() {
   if(existsSync(atlasPath())) await cp(atlasPath(),path.join(destination,'atlas.sqlite'));
   if (existsSync(path.join(dataDir(), 'photos'))) await cp(path.join(dataDir(), 'photos'), path.join(destination, 'photos'), { recursive: true });
   if (existsSync(path.join(dataDir(), 'comparisons'))) await cp(path.join(dataDir(), 'comparisons'), path.join(destination, 'comparisons'), { recursive: true });
+  const driveOriginals=db().prepare("SELECT id,original_path FROM observations WHERE original_path LIKE 'drive:%'").all();
+  if(driveOriginals.length){await writeFile(path.join(destination,'drive-originals-manifest.json'),JSON.stringify(driveOriginals,null,2),{mode:0o600});console.log(`${driveOriginals.length} Drive original(s) are not included; back up those Drive files separately.`);}
   console.log(`Backup saved to ${destination}. Stop the app before backing up to keep files and database in sync.`);
 }
 main().catch(error => { console.error(error.message); process.exitCode = 1; });

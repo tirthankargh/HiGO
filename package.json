@@ -13,7 +13,8 @@
     "backup": "tsx scripts/backup.ts",
     "atlas:import": "tsx scripts/import-atlas.ts",
     "predev": "node scripts/prepare-map.mjs",
-    "prebuild": "node scripts/prepare-map.mjs"
+    "prebuild": "node scripts/prepare-map.mjs",
+    "drive:connect": "node --import tsx scripts/connect-drive.ts"
   },
   "engines": {
     "node": ">=24.0.0"

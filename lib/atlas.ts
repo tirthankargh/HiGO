@@ -31,8 +31,16 @@ export function atlasDetail(id:string):AtlasDetail|null {
   const cover=nearby.find(p=>p.id==='drang-2023')||nearby[0];
   return {...g,photos,relatedJournal:id===DRANG_RGI?{slug:'drang-drang',name:'Drang Drung',count:nearby.length,cover:cover?.id||null,coverCredit:cover?.credit||'Photographer unconfirmed',coverDate:cover?photoDate(cover):'Date unknown',provisional:true}:null};
 }
-export function searchAtlas(query:string,region:string,bounds?:number[]) {
+export function photographedGlaciers() {
+  const rows=db().prepare(`SELECT rgi_id AS id,id AS observation_id,0 AS provisional FROM observations WHERE status='approved' AND rgi_id IS NOT NULL
+    UNION ALL SELECT ? AS id,id AS observation_id,1 AS provisional FROM observations WHERE status='approved' AND glacier_id='drang-drang'`).all(DRANG_RGI) as {id:string;observation_id:string;provisional:number}[];
+  const groups=new Map<string,{ids:Set<string>;direct:boolean}>();
+  for(const row of rows){const group=groups.get(row.id)||{ids:new Set<string>(),direct:false};group.ids.add(row.observation_id);if(!row.provisional)group.direct=true;groups.set(row.id,group);}
+  return [...groups].flatMap(([id,group])=>{const g=atlasGlacier(id);return g?[{id,longitude:g.longitude,latitude:g.latitude,count:group.ids.size,provisional:!group.direct}]:[];});
+}
+export function searchAtlas(query:string,region:string,bounds?:number[],photoIds?:Set<string>) {
   const database=atlasDb(); if(!database) return [];
+  if(photoIds && !photoIds.size)return [];
   const terms:string[]=[],args:(string|number)[]=[];
   if(query.trim()) {
     const q=query.trim().replace(/[\\%_]/g,'\\$&');
@@ -41,5 +49,7 @@ export function searchAtlas(query:string,region:string,bounds?:number[]) {
   }
   if(region){terms.push('region=?');args.push(region);}
   if(bounds){terms.push('east>=? AND west<=? AND north>=? AND south<=?');args.push(bounds[0],bounds[2],bounds[1],bounds[3]);}
-  return database.prepare(`SELECT * FROM inventory ${terms.length?'WHERE '+terms.join(' AND '):''} ORDER BY CASE WHEN id='${DRANG_RGI}' THEN 0 ELSE 1 END, area DESC LIMIT 30`).all(...args).map(r=>({...r})) as AtlasGlacier[];
+  if(photoIds&&photoIds.size<=500){terms.push(`id IN (${[...photoIds].map(()=>'?').join(',')})`);args.push(...photoIds);}
+  const rows=database.prepare(`SELECT * FROM inventory ${terms.length?'WHERE '+terms.join(' AND '):''} ORDER BY CASE WHEN id='${DRANG_RGI}' THEN 0 ELSE 1 END, area DESC ${photoIds&&photoIds.size>500?'':'LIMIT 30'}`).all(...args).map(r=>({...r})) as AtlasGlacier[];
+  return photoIds&&photoIds.size>500?rows.filter(r=>photoIds.has(r.id)).slice(0,30):rows;
 }
