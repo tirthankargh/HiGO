@@ -1,8 +1,8 @@
 import { DatabaseSync } from 'node:sqlite';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
-import { dataDir, db, published, publicObservation } from './db';
-import { DRANG_RGI, type AtlasGlacier, type AtlasSummary, type AtlasDetail } from './atlas-types';
+import { dataDir, db, glacier, published, publicObservation } from './db';
+import { DRANG_RGI, type AtlasGlacier, type AtlasSummary, type AtlasDetail, type AtlasJournal } from './atlas-types';
 import type { Observation } from './types';
 import { photoDate } from './format';
 
@@ -38,6 +38,17 @@ export function photographedGlaciers() {
   for(const row of rows){const group=groups.get(row.id)||{ids:new Set<string>(),direct:false};group.ids.add(row.observation_id);if(!row.provisional)group.direct=true;groups.set(row.id,group);}
   return [...groups].flatMap(([id,group])=>{const g=atlasGlacier(id);return g?[{id,longitude:g.longitude,latitude:g.latitude,count:group.ids.size,provisional:!group.direct}]:[];});
 }
+export function photographedJournals(query:string,region:string,bounds?:number[]):AtlasJournal[] {
+  // Panchinala has a journal in South Asia West and needs a verified inventory outline.
+  if(bounds || (region && region!=='14')) return [];
+  const journal=glacier('panchinala');
+  if(!journal) return [];
+  const nameKey=(value:string)=>value.toLowerCase().replace(/[\s-]+/g,'');
+  if(query.trim() && !nameKey(journal.name).includes(nameKey(query))) return [];
+  const photos=published(journal.id);
+  return photos.length ? [{slug:journal.id,name:journal.name,region:journal.region,photoCount:photos.length}] : [];
+}
+
 export function searchAtlas(query:string,region:string,bounds?:number[],photoIds?:Set<string>) {
   const database=atlasDb(); if(!database) return [];
   if(photoIds && !photoIds.size)return [];

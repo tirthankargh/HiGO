@@ -3,4 +3,5 @@ export type AtlasGlacier = { id:string; name:string; region:string; longitude:nu
 export type AtlasDetail = AtlasGlacier & { photos:PublicObservation[]; relatedJournal:null|{slug:string;name:string;count:number;cover:string|null;coverCredit:string;coverDate:string;provisional:boolean} };
 export type AtlasSummary = { available:boolean; count:number; regions:{id:string;count:number}[]; bounds:[number,number,number,number]|null };
 export type PhotographedGlacier={id:string;longitude:number;latitude:number;count:number;provisional:boolean};
+export type AtlasJournal = { slug:string; name:string; region:string; photoCount:number };
 export const DRANG_RGI = 'RGI2000-v7.0-G-14-26914';

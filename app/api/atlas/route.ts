@@ -1,4 +1,4 @@
-import { atlasSummary, searchAtlas, photographedGlaciers } from '@/lib/atlas';
+import { atlasSummary, searchAtlas, photographedGlaciers, photographedJournals } from '@/lib/atlas';
 export const runtime='nodejs';
 export const dynamic='force-dynamic';
 export function GET(request:Request) {
@@ -7,6 +7,8 @@ export function GET(request:Request) {
   if(q.length>120||(region&&!/^\d{2}$/.test(region)))return Response.json({error:'Invalid search.'},{status:400});
   const raw=params.get('bbox'),bounds=raw?.split(',').map(Number);
   if(bounds&&(bounds.length!==4||bounds.some(n=>!Number.isFinite(n))||bounds[0]<-180||bounds[2]>180||bounds[1]<-90||bounds[3]>90||bounds[0]>bounds[2]||bounds[1]>bounds[3]))return Response.json({error:'Invalid map bounds.'},{status:400});
-  const photoIds=params.get('photos')==='1'?new Set(photographedGlaciers().map(p=>p.id)):undefined;
-  return Response.json({summary:atlasSummary(),results:searchAtlas(q,region,bounds,photoIds)},{headers:{'Cache-Control':'no-store'}});
+  const photosOnly=params.get('photos')==='1';
+  const photoIds=photosOnly?new Set(photographedGlaciers().map(p=>p.id)):undefined;
+  const journals=photosOnly?photographedJournals(q,region,bounds):[];
+  return Response.json({summary:atlasSummary(),results:searchAtlas(q,region,bounds,photoIds),journals},{headers:{'Cache-Control':'no-store'}});
 }

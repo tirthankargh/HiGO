@@ -7,7 +7,7 @@ export async function seed() {
   insert.run('drang-drang','Drang Drung','Zanskar · Ladakh', 'A broad river of ice bends between steep mountain walls. These three photographs look into the same valley, each with its own framing and conditions. Together, they begin a record that future observations can extend.', 'drang-2023');
   insert.run('panchinala','Panchinala','Lahaul · Himachal Pradesh', 'At the meeting of rock, ice, and water, the details matter. This small collection moves from a wide view with trekkers to the texture of an ice face. It is a starting point for returning to—and recording—the same place.', 'panchi-wide');
   const photos = [
-    { id: 'drang-2023', file: 'drang drang/IMG_4305.jpg', glacier: 'drang-drang', date: '2023-10-02', credit: 'bibek nandi', caption: 'A sweeping view along the glacier valley.' },
+    { id: 'drang-2023', file: 'drang drang/IMG_4305.jpg', glacier: 'drang-drang', date: '2023-10-02', credit: 'Tirthankar Ghosh', caption: 'A sweeping view along the glacier valley.' },
     { id: 'drang-undated', file: 'drang drang/IMG_5042.jpg', glacier: 'drang-drang', date: null, credit: '', caption: 'A monochrome view of the glacier. Capture date and original source are unconfirmed.' },
     { id: 'drang-snow', file: 'drang drang/image3.jpg', glacier: 'drang-drang', date: null, credit: '', caption: 'Snow across the glacier, with water visible in the foreground.' },
     { id: 'panchi-wide', file: 'Panchinala/DSCF1629.jpg', glacier: 'panchinala', date: null, credit: '', caption: 'Trekkers in the foreground give a sense of scale to the ice face beyond.' },

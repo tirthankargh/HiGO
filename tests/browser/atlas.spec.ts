@@ -13,6 +13,14 @@ test('atlas renders local tiles, filters, selects records, and opens the journal
   await expect(page.getByTestId('atlas-map')).toHaveAttribute('data-ready','true');
   await expect(page.locator('.atlas-map-notice')).toHaveCount(0);
   await page.screenshot({path:'test-results/atlas-desktop.png',fullPage:true});
+  await page.getByLabel('Only glaciers with photographs').check();
+  await page.getByLabel('Search glaciers by name or RGI ID').fill('Panchi Nala');
+  const journal=page.getByRole('link',{name:/Panchinala.*3 reviewed photographs/});
+  await expect(journal).toHaveAttribute('href','/glaciers/panchinala');
+  await expect(journal).toContainText('Inventory outline pending');
+  const inView=await (await request.get('/api/atlas?photos=1&bbox=76,32,78,34')).json();
+  expect(inView.journals).toEqual([]);
+  await page.getByLabel('Only glaciers with photographs').uncheck();
   await page.getByLabel('Search glaciers by name or RGI ID').fill('Drang');
   await expect(page.locator('.atlas-result')).toHaveCount(1);
   await page.locator('.atlas-result').click();await expect(page.locator('.atlas-detail h2')).toHaveText('Drang Drung');

@@ -36,7 +36,7 @@ test('origin checks tolerate Next localhost normalization and reject other origi
 test('seed is idempotent and keeps uncertain metadata honest',async()=>{
   await seed();assert.equal(observations().length,6);
   assert.equal(Object.getPrototypeOf(observation('drang-2023')),Object.prototype);
-  assert.equal(observation('drang-2023')?.credit,'bibek nandi');
+  assert.equal(observation('drang-2023')?.credit,'Tirthankar Ghosh');
   assert.equal(observation('drang-undated')?.capture_date,null);
   assert.ok(observations().every(o=>o.latitude===null&&o.longitude===null));
   db().prepare('UPDATE observations SET caption=? WHERE id=?').run('A curator correction','panchi-wide');

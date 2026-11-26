@@ -37,6 +37,8 @@ export function db() {
   if(!columns.includes('reported_region')) database.exec("ALTER TABLE observations ADD COLUMN reported_region TEXT NOT NULL DEFAULT ''");
   // Correct the original seed name without overwriting any other curator edit.
   database.prepare("UPDATE glaciers SET name='Drang Drung' WHERE id='drang-drang' AND name='Drang Drang'").run();
+  // Apply the credit correction to existing installations of the seed collection.
+  database.prepare("UPDATE observations SET credit=? WHERE id='drang-2023' AND glacier_id='drang-drang' AND source='Supplied HiGO collection' AND credit=?").run('Tirthankar Ghosh', 'bibek nandi');
   database.exec('PRAGMA user_version=3;');
   return database;
 }
